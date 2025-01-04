@@ -1,0 +1,5 @@
+test.py
+/.venv
+/.vscode
+/drones_lrpd.egg-info
+/instances
