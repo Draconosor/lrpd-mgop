@@ -144,13 +144,6 @@ Ensure the following are installed on your system:
   - `.gitignore`: Specifies files to be ignored by Git.
   - `setup.py`: Script for packaging the project.
 
-For any issues or questions, feel free to contact the maintainers of this repository.
-``` 
-
-This is ready to copy and paste into your `README.md`. Let me know if you need further assistance!
-
-
-
 ## Notes
 
 - The script uses random seed initialization for reproducibility
