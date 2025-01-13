@@ -1,10 +1,12 @@
-"""Nodes module"""
+"""
+This module contains the Node class which represents a node in the graph.
+"""
 from dataclasses import dataclass
 from typing import Tuple
 
 
 @dataclass(slots=True)
-class Nodes:
+class Node:
     """Node representation with attributes like coordinates and demand."""
     _id: str
     _node_type: str
@@ -36,7 +38,7 @@ class Nodes:
         return self._coordinates[1]
 
     def __eq__(self, other):
-        if isinstance(other, Nodes):
+        if isinstance(other, Node):
             return self.id == other.id
         return False
 

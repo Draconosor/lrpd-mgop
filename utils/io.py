@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from models.nodes import Nodes
+from models.nodes import Node
 from models.vehicles import Drone, Truck
 from utils.metrics import get_index_mapper
 
@@ -16,7 +16,7 @@ def read_instance_file(instance_id: str) -> pd.ExcelFile:
     file_path = os.path.join(project_root, "instances", instance_id, f"{instance_id}.xlsx")
     return pd.ExcelFile(file_path)
 
-def create_nodes(instance_file: pd.ExcelFile) -> List[Nodes]:
+def create_nodes(instance_file: pd.ExcelFile) -> List[Node]:
     """Creates nodes from the instance data."""
     coords_df = pd.read_excel(instance_file, sheet_name="COORDS")
     demand_df = pd.read_excel(instance_file, sheet_name="DEMANDA")
@@ -27,7 +27,7 @@ def create_nodes(instance_file: pd.ExcelFile) -> List[Nodes]:
     
     # Use list comprehension instead of apply
     return [
-        Nodes(
+        Node(
             str(row["NODES"]),
             "Customer" if "Customer" in row["NODES"] 
             else "Parking Lot" if "Depot" in row["NODES"] 
@@ -87,7 +87,7 @@ def read_distance_matrices(instance_file: pd.ExcelFile, etr: float, edr: float) 
     
     return truck_dm.to_numpy(), drone_dm.to_numpy(), times_truck.to_numpy(), times_drone.to_numpy(), get_index_mapper(truck_dm)
 
-def read_instance(instance_id: str) -> Tuple[List[Nodes], np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[Truck], List[Drone], Dict[str, int]]:
+def read_instance(instance_id: str) -> Tuple[List[Node], np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[Truck], List[Drone], Dict[str, int]]:
     """Optimized instance reading function."""
     instance_file = read_instance_file(instance_id)
     

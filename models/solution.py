@@ -1,57 +1,23 @@
+"""
+This module contains the Solution class, which represents a complete solution to the routing problem.
+"""
 from typing import Dict, List
 
 import numpy as np
-import pandas as pd
 
-from models.nodes import Nodes
+from models.nodes import Node
 from models.vehicles import Drone, Truck
 from utils.metrics import RouteCache, calculate_route_metric
 
 
-class Saving:
-    def __init__(self, parking_lot: Nodes, to: Nodes, saving: float, prev_node: Nodes = None, truck_a: Truck = None, truck_b: Truck = None) -> None:
-        self.parking_lot = parking_lot
-        self.to = to
-        self.prev_node = prev_node
-        self._saving = saving
-        self.truck_a = truck_a
-        self.truck_b = truck_b
-        self.used = False
-        
-    @property
-    def saving(self):
-        return self._saving
-    
-    @property
-    def strict_nodes(self):
-        return [self.parking_lot, self.to]
-        
-    def __repr__(self) -> str:
-        return f'Saving from {self.prev_node} to parking {self.parking_lot.id} using drone to {self.to.id} of value {self.saving}'
-    
-    def __eq__(self, other):
-        if isinstance(other, Saving):
-            return self.saving == other.saving
-        return False
-    
-    def __lt__(self, other):
-        if not isinstance(other, Saving):
-            return NotImplemented
-        return self.saving < other.saving
-
-    def __gt__(self, other):
-        if not isinstance(other, Saving):
-            return NotImplemented
-        return self.saving > other.saving
-
-
 class Solution:
     """Represents a complete solution to the routing problem."""
-    def __init__(self, id: int, nodes: List[Nodes], trucks: List[Truck], drones: List[Drone]) -> None:
+    def __init__(self, id: int, nodes: List[Node], trucks: List[Truck], drones: List[Drone]) -> None:
         self.id = id
         self.nodes = nodes
         self.trucks = trucks
         self.drones = drones
+        self.last_improvement: str = ''
         
     def __repr__(self):
         return f'Solution {self.id}'
@@ -97,3 +63,14 @@ class Solution:
             truck_makespan[truck] = current_time
         
         return truck_makespan
+    
+    def integrity_check(self):
+        customers = {node for node in self.nodes if node.node_type == 'Customer'}
+        visit_nodes = [node for truck in self.trucks for node in truck.route] + [drone.visit_node for truck in self.trucks for drone in truck.drones]
+        for c in customers:
+            count = 0
+            for node in visit_nodes:
+                if c == node:
+                    count += 1
+            if count != 1:
+                raise Exception(f'Solution did not pass integrity check due to node {c}')
