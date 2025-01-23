@@ -12,7 +12,7 @@ initial_sol = initialize_solution(instance_nodes, mapper, truck_dm, drone_dm, in
 
 parameters = (mapper, truck_dm, drone_dm, times_truck, times_drone)
 
-a, tracker = local_search(parameters, initial_sol) # type: ignore
+a, tracker = local_search(parameters, initial_sol, n_size=30) # type: ignore
 
 # Sort by 'total_exec_time' in descending order
 #sorted_timing_data = dict(sorted(perturbations_timer.get_stats().items(), key=lambda x: x[1]['total_exec_time'], reverse=True))
@@ -32,3 +32,9 @@ print('PERTURBATIONS TIMER')
 print(perturbations_timer.get_stats())
 print('PERTURBATIONS QUALITY TRACKER')
 print(tracker.get_stats())
+print('TOTAL EXECUTION TIME')
+print(ls_timer.get_stats())
+
+print('Best solution:', best_solution[1])
+
+print(f'Used drones {sum([1 for d in best_solution[0].drones if d.is_used])} of {len(best_solution[0].drones)}')

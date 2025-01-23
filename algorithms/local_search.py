@@ -7,20 +7,29 @@ import random
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
+from functools import wraps
 from typing import Dict, List, Tuple
 
 import numpy as np
 
-from algorithms.perturbations.diversification import (group_parkings, random_truck_paired_select,
-    shuffle_route, swap_interruta_random, swap_interruta_savings,
-    swap_truck_drone_savings, transfer_node_random, transfer_node_savings, fuse_trucks)
-from algorithms.perturbations.intensification import (or_opt_improvement,
+from algorithms.perturbations.diversification import random_truck_paired_select as rps
+
+from algorithms.perturbations.diversification import (add_parking, 
+                                                      fuse_trucks, 
+                                                      group_parkings,
+                                                      shuffle_route, 
+                                                      swap_interruta_random, 
+                                                      transfer_node_random)
+from algorithms.perturbations.intensification import (launch_drone_savings,
+                                                      or_opt_improvement,
+                                                      swap_interruta_savings,
+                                                      swap_truck_drone_savings,
+                                                      transfer_node_savings,
                                                       two_opt_improvement)
 from models.solution import Solution
 from models.vehicles import Truck
 from utils.metrics import RouteCache
 from utils.timer import FunctionTimer
-from functools import wraps
 
 ls_timer = FunctionTimer()
 
@@ -112,7 +121,9 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
             (swap_truck_drone_savings, (truck_a, mapper, truck_dm, drone_dm, truck_cache, drone_cache)),
             (wrap_route_improvement(two_opt_improvement), (truck_a.route, truck_dm, mapper, truck_cache)),
             (wrap_route_improvement(or_opt_improvement), (truck_a.route, truck_dm, mapper, truck_cache)),
-            (shuffle_route, (truck_a,))
+            (shuffle_route, (truck_a,)),
+            (launch_drone_savings, (truck_a, solution.drones, mapper, truck_dm, drone_dm, truck_cache, drone_cache)),
+            (add_parking, (truck_a, solution.nodes))
         ]
         
         if truck_b:
@@ -135,7 +146,7 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
         # Generate neighbors
         for _ in range(n_size):
             neighbor = deepcopy(start_sol)
-            paired_trucks = random_truck_paired_select(neighbor.trucks)
+            paired_trucks = rps(neighbor.trucks)
             
             # Get perturbation options
             if len(paired_trucks) > 1:
@@ -185,4 +196,4 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
                 best_neighbor.makespan_per_truck(mapper, times_truck, times_drone)
             )
 
-    return solution_memory, p_tracker
+    return solution_memory, sm_tracker

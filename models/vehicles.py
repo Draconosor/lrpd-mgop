@@ -1,4 +1,5 @@
 """ This module contains the Vehicle, Drone, and Truck classes for the routing problem. """
+from platform import node
 from typing import List, Union
 
 from models.nodes import Node
@@ -367,4 +368,7 @@ def launch_drone(drone: Drone, truck: Truck, parking_lot: Node, visit_node: Node
     drone.visit_node = visit_node
     truck.drones.append(drone)
     if parking_lot not in truck.route:
-        truck.route.insert(1, parking_lot)
+        node_pos = truck.route.index(visit_node)
+        truck.route[node_pos] = parking_lot
+    else:
+        remove_node(visit_node, truck)
