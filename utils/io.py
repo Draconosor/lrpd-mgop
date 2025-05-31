@@ -82,6 +82,7 @@ def read_distance_matrices(instance_file: pd.ExcelFile, etr: float, edr: float) 
     # Process all matrices at once
     truck_dm = process_matrix("MANHATTAN", etr)
     drone_dm = process_matrix("EUCLI", edr)
+    drone_dm = drone_dm.reindex(index=truck_dm.index, columns=truck_dm.columns)
     times_truck = process_matrix("TIEMPOS_CAM")
     times_drone = process_matrix("TIEMPOS_DRON")
     

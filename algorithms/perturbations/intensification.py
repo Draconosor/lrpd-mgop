@@ -92,8 +92,9 @@ def or_opt_improvement(route: List[Node], distance_matrix: np.ndarray, mapper: D
     """
     improved = True
     current_route = route
+    failures = 0
     
-    while improved:
+    while improved and failures < 50:
         improved = False
         # Try different string lengths (1 to 3 is common in practice)
         for string_length in range(1, 4):
@@ -102,6 +103,7 @@ def or_opt_improvement(route: List[Node], distance_matrix: np.ndarray, mapper: D
                 current_route = new_route
                 improved = True
                 break
+            failures += 1
     
     return current_route
 

@@ -341,29 +341,31 @@ def cluster_bigroute(bigroute: List[Node], trucks: List[Truck], base_nodes: List
 
 
 @construction_timer                                
-def initialize_solution(instance_nodes: List[Node], mapper: Dict[str, int], truck_dm: np.ndarray, drone_dm: np.ndarray, instance_trucks: List[Truck], instance_drones: List[Drone]) -> Solution:
+def initialize_solution(nodes: List[Node], mapper: Dict[str, int], truck_dm: np.ndarray, drone_dm: np.ndarray, trucks: List[Truck], drones: List[Drone], constructor: Optional[str] = 'cw') -> Solution:
     """
     Initializes a solution for the given instance.
     Args:
-        instance_nodes (List[Node]): List of nodes in the instance.
+        nodes (List[Node]): List of nodes in the instance.
         mapper (Dict[str, int]): Mapping of node identifiers to indices.
         truck_dm (np.ndarray): Distance matrix for trucks.
         drone_dm (np.ndarray): Distance matrix for drones.
-        instance_trucks (List[Truck]): List of trucks available in the instance.
-        instance_drones (List[Drone]): List of drones available in the instance.
+        trucks (List[Truck]): List of trucks available in the instance.
+        drones (List[Drone]): List of drones available in the instance.
     Returns:
         Solution: The initial solution for the instance.
     """
     # Generate initial solution
-    #bigroute = nn_bigroute(instance_nodes, mapper, truck_dm)
-    bigroute = cw_bigroute(instance_nodes, mapper, truck_dm)
+    if constructor == 'nn':
+        bigroute = nn_bigroute(nodes, mapper, truck_dm)
+    else:
+        bigroute = cw_bigroute(nodes, mapper, truck_dm)
     
-    assign_drones_bigroute(instance_nodes, bigroute, instance_drones, mapper, truck_dm, drone_dm)
+    assign_drones_bigroute(nodes, bigroute, drones, mapper, truck_dm, drone_dm)
     
     # Cluster bigroute into truck routes
-    cluster_bigroute(bigroute, instance_trucks, instance_nodes, instance_drones)
+    cluster_bigroute(bigroute, trucks, nodes, drones)
     
-    initial_sol = Solution(0,instance_nodes, instance_trucks, instance_drones)
+    initial_sol = Solution(0,nodes, trucks, drones)
     
 
     return initial_sol

@@ -69,3 +69,10 @@ class FunctionTimer:
                 'total_exec_time': sum(times)
             }
         return stats
+    
+    def reset(self):
+        """
+        Reset the timer by clearing all recorded execution times and total executions.
+        """
+        self.execution_times.clear()
+        self.total_executions.clear()

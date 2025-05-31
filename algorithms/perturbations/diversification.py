@@ -216,7 +216,8 @@ def add_parking(truck: Truck, base_nodes: List[Node]):
     Returns:
         None
     """
-    while True:
+    failure = 0
+    while True and failure <= 50:
         parking_lots = [node for node in base_nodes if node.node_type == 'Parking Lot']
         selected_parking = random.choice(parking_lots)
         if selected_parking not in truck.route:
@@ -227,5 +228,7 @@ def add_parking(truck: Truck, base_nodes: List[Node]):
                     drone.route[0] = selected_parking
                     drone.route[-1] = selected_parking
             break
+        else:
+            failure += 1
     
         

@@ -1,3 +1,9 @@
 pandas[excel]
 numpy
 setuptools
+scipy
+matplotlib
+tqdm
+pyarrow
+fastparquet
+scikit-learn

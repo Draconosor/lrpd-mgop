@@ -1,5 +1,4 @@
 """ This module contains the Vehicle, Drone, and Truck classes for the routing problem. """
-from platform import node
 from typing import List, Union
 
 from models.nodes import Node
@@ -146,7 +145,7 @@ class Truck(Vehicle):
     
     def reset_vehicle(self):
         super().reset_vehicle()
-        self.drones = []
+        self.drones.clear()
     
     def drop_unused_parkings(self):
         """

@@ -18,6 +18,7 @@ class Solution:
         self.trucks = trucks
         self.drones = drones
         self.last_improvement: str = ''
+        self.sample_name = ''
         
     def __repr__(self):
         return f'Solution {self.id}'
@@ -33,9 +34,9 @@ class Solution:
         return truck_emissions + drone_emissions
     
     def makespan_per_truck(self, mapper: Dict[str, int], truck_time_matrix: np.ndarray, 
-                          drone_time_matrix: np.ndarray) -> Dict[Truck, float]:
+                          drone_time_matrix: np.ndarray) -> Dict[str, float]:
         drone_cache = RouteCache()
-        truck_makespan: Dict[Truck, float] = {}
+        truck_makespan: Dict[str, float] = {}
         
         for truck in self.trucks:
             if not truck.is_used:
@@ -60,7 +61,7 @@ class Solution:
                     
                 prev_node = node
                 
-            truck_makespan[truck] = current_time
+            truck_makespan[truck.id] = current_time
         
         return truck_makespan
     

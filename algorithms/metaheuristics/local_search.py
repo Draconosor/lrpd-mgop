@@ -9,23 +9,24 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
 from typing import Dict, List, Tuple
+from weakref import ref
 
 import numpy as np
 
-from algorithms.perturbations.diversification import random_truck_paired_select as rps
-
-from algorithms.perturbations.diversification import (add_parking, 
-                                                      fuse_trucks, 
+from algorithms.perturbations.diversification import \
+    random_truck_paired_select as rps
+    
+from algorithms.perturbations.diversification import (shuffle_route,
+                                                      add_parking, 
+                                                      fuse_trucks,
                                                       group_parkings,
-                                                      shuffle_route, 
-                                                      swap_interruta_random, 
+                                                      swap_interruta_random,
                                                       transfer_node_random)
 from algorithms.perturbations.intensification import (launch_drone_savings,
                                                       or_opt_improvement,
                                                       swap_interruta_savings,
                                                       swap_truck_drone_savings,
-                                                      transfer_node_savings,
-                                                      two_opt_improvement)
+                                                      transfer_node_savings)
 from models.solution import Solution
 from models.vehicles import Truck
 from utils.metrics import RouteCache
@@ -51,7 +52,8 @@ class ObjectiveTracker:
         return stats
 
 @ls_timer
-def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndarray, np.ndarray], initial_solution: Solution, n_iter: int = 200, n_size: int = 10) -> Tuple[Dict[Solution, Tuple[float, Dict[Truck, float]]], ObjectiveTracker]:
+def local_search(multiobjective_params: Tuple[float,float, float], parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndarray, np.ndarray, RouteCache, RouteCache], 
+                 initial_solution: Solution, n_iter: int = 200, n_size: int = 20, exclude_operators: List[str] = [], specify_operators: List[str] = []) -> Tuple[Dict[Solution, Dict], Tuple[ObjectiveTracker, ObjectiveTracker]]:
     """
     Performs local search optimization for the routing problem.
     
@@ -61,17 +63,16 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
         n_size: Number of neighbors to generate per iteration
     
     Returns:
-        Dictionary mapping solutions to their emissions and makespan values
+        Dictionary mapping solutions to their emissions and makespan values and objectve trackers tuple
     """
     # Read instance and initialize
     
-    mapper, truck_dm, drone_dm, times_truck, times_drone = parameters
+    mapper, truck_dm, drone_dm, times_truck, times_drone, truck_cache, drone_cache = parameters
+    ref_em, ref_makespan, alfa = multiobjective_params
     
-    
-    
-    def calculate_emissions(sol: Solution):
+    def calculate_objective(sol: Solution, alfa: float = alfa):
         """
-        Calculate the emissions for a given solution.
+        Calculate the weighted objective for a given solution.
 
         Args:
             sol (Solution): The solution object containing the necessary data to calculate emissions.
@@ -79,17 +80,18 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
         Returns:
             float: The total emissions calculated based on the provided solution.
         """
-        return sol.emissions(mapper, truck_dm, drone_dm)
+        return sol.emissions(mapper, truck_dm, drone_dm)*alfa + (1-alfa)*max(sol.makespan_per_truck(mapper, times_truck, times_drone).values())
     
     # Initialize solution memory with initial solution
-    solution_memory = {initial_solution: (
-        calculate_emissions(initial_solution),
-        initial_solution.makespan_per_truck(mapper, times_truck, times_drone)
-    )}
+    solution_memory = {
+        initial_solution: {
+            'objective' : calculate_objective(initial_solution),
+            'emissions': initial_solution.emissions(mapper, truck_dm, drone_dm),
+            'makespan_per_truck' : initial_solution.makespan_per_truck(mapper, times_truck, times_drone)
+            }
+        }
     
     start_sol = initial_solution
-    truck_cache = RouteCache()  # Create once and reuse
-    drone_cache = RouteCache()  
     
     # Prepare perturbation boxes outside the loop
     def wrap_route_improvement(improvement_func):
@@ -119,7 +121,6 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
             (swap_interruta_savings, (solution.trucks, mapper, truck_dm, truck_cache)),
             (transfer_node_savings, (solution.trucks, mapper, truck_dm, truck_cache)),
             (swap_truck_drone_savings, (truck_a, mapper, truck_dm, drone_dm, truck_cache, drone_cache)),
-            (wrap_route_improvement(two_opt_improvement), (truck_a.route, truck_dm, mapper, truck_cache)),
             (wrap_route_improvement(or_opt_improvement), (truck_a.route, truck_dm, mapper, truck_cache)),
             (shuffle_route, (truck_a,)),
             (launch_drone_savings, (truck_a, solution.drones, mapper, truck_dm, drone_dm, truck_cache, drone_cache)),
@@ -132,8 +133,17 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
                 (fuse_trucks, (truck_a, truck_b)),
                 (swap_interruta_random, (truck_a, truck_b))
             ]
-            return single_box + paired_box
-        return single_box
+            full_box =  single_box + paired_box
+        else:    
+            full_box =  single_box
+        
+        if exclude_operators:
+            full_box = [op for op in full_box 
+                      if op[0].__name__ not in exclude_operators]
+        if specify_operators:
+            full_box = [op for op in full_box 
+                      if op[0].__name__ in specify_operators]
+        return full_box
     # Track objective improvements
     
     sm_tracker = ObjectiveTracker()
@@ -142,6 +152,7 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
     # Main iteration loop
     for i in range(1, n_iter + 1):
         neighbors: List[Solution] = []
+
         
         # Generate neighbors
         for _ in range(n_size):
@@ -155,32 +166,34 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
                 func_box = get_perturbation_boxes(neighbor, paired_trucks[0])
             
             # Apply perturbation and optimization
-            #print(calculate_emissions(neighbor))
             selected_function, args = random.choice(func_box)
             selected_function(*args)
             for truck in neighbor.trucks:
                 truck.drop_unused_parkings()
-            #print(calculate_emissions(neighbor))
             neighbor.last_improvement = selected_function.__name__
-            p_tracker.objective_delta[selected_function.__name__].append(calculate_emissions(start_sol) - calculate_emissions(neighbor))
-            
+            p_tracker.objective_delta[selected_function.__name__].append(calculate_objective(start_sol) - calculate_objective(neighbor))
             neighbors.append(neighbor)
+
 
             
         # Sort neighbors by objective
-        neighbors.sort(key = lambda x: calculate_emissions(x))
+        neighbors.sort(key = lambda x: calculate_objective(x))
         # Check if any valid neighbor exists
         valid_neighbor_found = False
 
         for n in neighbors:
-            n_emissions = calculate_emissions(n)
-            if any(n_emissions == v[0] for v in solution_memory.values()):
+            n_objective = calculate_objective(n)
+            if any(n_objective == v['objective'] for v in solution_memory.values()):
                 continue
             # Valid neighbor found
             n.id = i
-            sm_tracker.objective_delta[n.last_improvement].append(calculate_emissions(start_sol) - calculate_emissions(n))
+            sm_tracker.objective_delta[n.last_improvement].append(calculate_objective(start_sol) - calculate_objective(n))
             start_sol = n
-            solution_memory[n] = (n_emissions, n.makespan_per_truck(mapper, times_truck, times_drone))
+            solution_memory[n] = {
+                'objective' : n_objective,
+                'emissions': n.emissions(mapper, truck_dm, drone_dm),
+                'makespan_per_truck' : n.makespan_per_truck(mapper, times_truck, times_drone)
+                }
             valid_neighbor_found = True
             break
 
@@ -189,11 +202,12 @@ def local_search(parameters: Tuple[Dict[str,int],np.ndarray, np.ndarray, np.ndar
             # Example: Pick the neighbor with the least emissions
             best_neighbor = neighbors[0]  # Neighbors are already sorted by emissions
             best_neighbor.id = i
-            sm_tracker.objective_delta[best_neighbor.last_improvement].append(calculate_emissions(start_sol) - calculate_emissions(best_neighbor))
+            sm_tracker.objective_delta[best_neighbor.last_improvement].append(calculate_objective(start_sol) - calculate_objective(best_neighbor))
             start_sol = best_neighbor
-            solution_memory[best_neighbor] = (
-                calculate_emissions(best_neighbor),
-                best_neighbor.makespan_per_truck(mapper, times_truck, times_drone)
-            )
+            solution_memory[best_neighbor] = {
+                'objective' : calculate_objective(best_neighbor),
+                'emissions': best_neighbor.emissions(mapper, truck_dm, drone_dm),
+                'makespan_per_truck': best_neighbor.makespan_per_truck(mapper, times_truck, times_drone)
+            }
 
-    return solution_memory, sm_tracker
+    return solution_memory, (sm_tracker, p_tracker)
